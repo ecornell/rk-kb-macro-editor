@@ -15,22 +15,48 @@ TOTAL_FILE_SIZE = 834
 
 # Virtual key codes (Windows)
 VK_CODES = {
+    # Letters
     'A': 0x41, 'B': 0x42, 'C': 0x43, 'D': 0x44, 'E': 0x45, 'F': 0x46,
     'G': 0x47, 'H': 0x48, 'I': 0x49, 'J': 0x4A, 'K': 0x4B, 'L': 0x4C,
     'M': 0x4D, 'N': 0x4E, 'O': 0x4F, 'P': 0x50, 'Q': 0x51, 'R': 0x52,
     'S': 0x53, 'T': 0x54, 'U': 0x55, 'V': 0x56, 'W': 0x57, 'X': 0x58,
     'Y': 0x59, 'Z': 0x5A,
+    # Numbers
     '0': 0x30, '1': 0x31, '2': 0x32, '3': 0x33, '4': 0x34,
     '5': 0x35, '6': 0x36, '7': 0x37, '8': 0x38, '9': 0x39,
+    # Function keys
+    'F1': 0x70, 'F2': 0x71, 'F3': 0x72, 'F4': 0x73, 'F5': 0x74, 'F6': 0x75,
+    'F7': 0x76, 'F8': 0x77, 'F9': 0x78, 'F10': 0x79, 'F11': 0x7A, 'F12': 0x7B,
+    # Arrow keys
+    'LEFT': 0x25, 'UP': 0x26, 'RIGHT': 0x27, 'DOWN': 0x28,
+    # Navigation keys
+    'HOME': 0x24, 'END': 0x23, 'PAGEUP': 0x21, 'PAGEDOWN': 0x22,
+    'INSERT': 0x2D, 'DELETE': 0x2E,
+    # Common keys
     'SPACE': 0x20, 'ENTER': 0x0D, 'TAB': 0x09, 'BACKSPACE': 0x08,
-    'LSHIFT': 0xA0, 'RSHIFT': 0xA1, 'LCTRL': 0xA2, 'RCTRL': 0xA3,
-    'LALT': 0xA4, 'RALT': 0xA5,
+    'ESCAPE': 0x1B, 'ESC': 0x1B, 'CAPSLOCK': 0x14, 'NUMLOCK': 0x90,
+    'SCROLLLOCK': 0x91, 'PRINTSCREEN': 0x2C, 'PAUSE': 0x13,
+    # Modifier keys
+    'LSHIFT': 0xA0, 'RSHIFT': 0xA1, 'SHIFT': 0x10,
+    'LCTRL': 0xA2, 'RCTRL': 0xA3, 'CTRL': 0x11,
+    'LALT': 0xA4, 'RALT': 0xA5, 'ALT': 0x12,
+    'LWIN': 0x5B, 'RWIN': 0x5C, 'WIN': 0x5B,
+    # Punctuation keys (unshifted)
+    'SEMICOLON': 0xBA, 'EQUALS': 0xBB, 'COMMA': 0xBC, 'MINUS': 0xBD,
+    'PERIOD': 0xBE, 'SLASH': 0xBF, 'BACKTICK': 0xC0, 'LBRACKET': 0xDB,
+    'BACKSLASH': 0xDC, 'RBRACKET': 0xDD, 'QUOTE': 0xDE,
+    # Numpad
+    'NUMPAD0': 0x60, 'NUMPAD1': 0x61, 'NUMPAD2': 0x62, 'NUMPAD3': 0x63,
+    'NUMPAD4': 0x64, 'NUMPAD5': 0x65, 'NUMPAD6': 0x66, 'NUMPAD7': 0x67,
+    'NUMPAD8': 0x68, 'NUMPAD9': 0x69,
+    'MULTIPLY': 0x6A, 'ADD': 0x6B, 'SEPARATOR': 0x6C,
+    'SUBTRACT': 0x6D, 'DECIMAL': 0x6E, 'DIVIDE': 0x6F,
 }
 
 # Reverse lookup
 VK_NAMES = {v: k for k, v in VK_CODES.items()}
 
-# Characters that require shift
+# Characters that require shift (shifted_char -> base_char)
 SHIFT_CHARS = {
     '!': '1', '@': '2', '#': '3', '$': '4', '%': '5',
     '^': '6', '&': '7', '*': '8', '(': '9', ')': '0',
@@ -38,6 +64,16 @@ SHIFT_CHARS = {
     ':': ';', '"': "'", '<': ',', '>': '.', '?': '/',
     '~': '`',
 }
+
+# Direct character to VK code mapping for punctuation
+CHAR_TO_VK = {
+    ';': 0xBA, '=': 0xBB, ',': 0xBC, '-': 0xBD,
+    '.': 0xBE, '/': 0xBF, '`': 0xC0, '[': 0xDB,
+    '\\': 0xDC, ']': 0xDD, "'": 0xDE,
+}
+
+# Reverse lookup for punctuation (VK code -> character)
+VK_TO_CHAR = {v: k for k, v in CHAR_TO_VK.items()}
 
 
 @dataclass
@@ -136,25 +172,41 @@ class RkmMacro:
         shift_held = False
 
         for event in self.events:
-            if event.vk_code in (0xA0, 0xA1):  # Shift keys
+            if event.vk_code in (0xA0, 0xA1, 0x10):  # Shift keys
                 shift_held = event.is_down
             elif event.is_down:
-                char = VK_NAMES.get(event.vk_code, '')
-                if len(char) == 1:
+                # Check for punctuation first
+                if event.vk_code in VK_TO_CHAR:
+                    base_char = VK_TO_CHAR[event.vk_code]
                     if shift_held:
-                        # Find shifted character
+                        # Find shifted version
                         for shifted, base in SHIFT_CHARS.items():
-                            if base.upper() == char:
+                            if base == base_char:
                                 text.append(shifted)
                                 break
                         else:
-                            text.append(char.upper())
+                            text.append(base_char)
                     else:
-                        text.append(char.lower())
-                elif char == 'SPACE':
-                    text.append(' ')
-                elif char == 'ENTER':
-                    text.append('\n')
+                        text.append(base_char)
+                else:
+                    char = VK_NAMES.get(event.vk_code, '')
+                    if len(char) == 1:
+                        if shift_held:
+                            # Find shifted character
+                            for shifted, base in SHIFT_CHARS.items():
+                                if base.upper() == char:
+                                    text.append(shifted)
+                                    break
+                            else:
+                                text.append(char.upper())
+                        else:
+                            text.append(char.lower())
+                    elif char == 'SPACE':
+                        text.append(' ')
+                    elif char == 'ENTER':
+                        text.append('\n')
+                    elif char == 'TAB':
+                        text.append('\t')
 
         return ''.join(text)
 
@@ -177,15 +229,21 @@ def text_to_events(text: str, timing: int = 4) -> List[KeyEvent]:
 
         if char.upper() in VK_CODES:
             vk_code = VK_CODES[char.upper()]
-            needs_shift = char.isupper() or char in SHIFT_CHARS
+            needs_shift = char.isupper()
+        elif char in CHAR_TO_VK:
+            # Direct punctuation character
+            vk_code = CHAR_TO_VK[char]
         elif char in SHIFT_CHARS:
+            # Shifted punctuation character
             base_char = SHIFT_CHARS[char]
-            vk_code = VK_CODES.get(base_char.upper())
+            vk_code = CHAR_TO_VK.get(base_char) or VK_CODES.get(base_char.upper())
             needs_shift = True
         elif char == ' ':
             vk_code = VK_CODES['SPACE']
         elif char == '\n':
             vk_code = VK_CODES['ENTER']
+        elif char == '\t':
+            vk_code = VK_CODES['TAB']
 
         if vk_code is not None:
             if needs_shift:
