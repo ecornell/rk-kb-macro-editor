@@ -14,15 +14,6 @@ A command-line tool for parsing, creating, and editing `.rkm` macro files for **
 - Python 3.13+
 - No external dependencies
 
-## Installation
-
-Clone the repository and use directly:
-
-```bash
-git clone <repository-url>
-cd kb-macro-editor
-```
-
 ## Usage
 
 ### Read a macro file
