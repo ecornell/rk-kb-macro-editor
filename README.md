@@ -1,6 +1,6 @@
 # KB Macro Editor
 
-A command-line tool for parsing, creating, and editing `.rkm` keyboard macro files.
+A command-line tool for parsing, creating, and editing `.rkm` macro files for **Royal Kludge** keyboards.
 
 ## Features
 
@@ -100,12 +100,21 @@ The tool supports a wide range of keys:
 
 ## File Format
 
-`.rkm` files use a binary format with:
-- 4-byte magic header (`A0 88 FB FA`)
-- 20-byte header section
-- 84-byte UTF-16LE macro name
-- Key events (8 bytes each: VK code, state, timing)
-- Fixed total file size of 834 bytes
+`.rkm` files use a proprietary binary format reverse-engineered from **Royal Kludge RK M100** keyboard software:
+
+| Offset | Size | Description                        |
+| ------ | ---- | ---------------------------------- |
+| 0x00   | 4    | Magic header (`A0 88 FB FA`)       |
+| 0x04   | 16   | Header data                        |
+| 0x14   | 84   | Macro name (UTF-16LE, null-padded) |
+| 0x68   | 2    | Event marker (`01 00`)             |
+| 0x6A   | 728  | Key events (8 bytes each)          |
+
+- **Total file size**: 834 bytes (fixed)
+- **Max events**: 80 (each character typically uses 2-4 events)
+- **Event format**: VK code (2 bytes) + state (2 bytes) + timing (4 bytes)
+
+> **Note**: All 106 supported VK codes have been tested and validated against the official Royal Kludge macro manager software.
 
 ## License
 

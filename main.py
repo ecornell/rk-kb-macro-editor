@@ -4,14 +4,17 @@ import sys
 from dataclasses import dataclass
 from typing import List
 
-# File format constants
+# File format constants (reverse-engineered from Royal Kludge RK M100 keyboard software)
+# Format is undocumented - these values were determined through analysis
 MAGIC_BYTES = bytes([0xa0, 0x88, 0xfb, 0xfa])
 HEADER_SIZE = 0x14  # 20 bytes before name
 NAME_SIZE = 84  # UTF-16LE padded name field
 NAME_OFFSET = 0x14
 EVENTS_OFFSET = 0x68
+EVENT_MARKER_SIZE = 2  # 0x01 0x00 before events
 EVENT_SIZE = 8
 TOTAL_FILE_SIZE = 834
+MAX_EVENTS = 80  # Determined through testing (not all file space is usable)
 
 # Virtual key codes (Windows)
 VK_CODES = {
@@ -258,6 +261,15 @@ def text_to_events(text: str, timing: int = 4) -> List[KeyEvent]:
     return events
 
 
+def validate_event_count(events: List[KeyEvent]) -> None:
+    """Validate that event count doesn't exceed file format limit."""
+    if len(events) > MAX_EVENTS:
+        raise ValueError(
+            f'Too many key events: {len(events)} (max {MAX_EVENTS}). '
+            f'Text is too long for a single macro.'
+        )
+
+
 def create_macro(name: str, text: str) -> RkmMacro:
     """Create a new macro from text."""
     # Default header data (from analyzed file)
@@ -268,6 +280,7 @@ def create_macro(name: str, text: str) -> RkmMacro:
     ])
 
     events = text_to_events(text)
+    validate_event_count(events)
     return RkmMacro(name=name, events=events, header_data=header_data)
 
 
@@ -280,7 +293,7 @@ def cmd_read(args):
         else:
             print(f'Name: {macro.name}')
             print(f'Text: {macro.get_text()}')
-            print(f'Events: {len(macro.events)}')
+            print(f'Events: {len(macro.events)}/{MAX_EVENTS}')
     except FileNotFoundError:
         print(f'Error: File not found: {args.file}', file=sys.stderr)
         sys.exit(1)
@@ -291,10 +304,15 @@ def cmd_read(args):
 
 def cmd_create(args):
     """Create a new macro file."""
-    macro = create_macro(args.name, args.text)
-    macro.save(args.output)
-    print(f'Created macro "{args.name}" with text "{args.text}"')
-    print(f'Saved to: {args.output}')
+    try:
+        macro = create_macro(args.name, args.text)
+        macro.save(args.output)
+        print(f'Created macro "{args.name}" with text "{args.text}"')
+        print(f'Events: {len(macro.events)}/{MAX_EVENTS}')
+        print(f'Saved to: {args.output}')
+    except ValueError as e:
+        print(f'Error: {e}', file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_update(args):
@@ -307,6 +325,7 @@ def cmd_update(args):
             macro.name = args.name
         if args.text:
             macro.events = text_to_events(args.text, args.timing)
+            validate_event_count(macro.events)
 
         output = args.output if args.output else args.file
         macro.save(output)
