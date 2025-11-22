@@ -1,4 +1,4 @@
-# KB Macro Editor
+# Royal Kludge Macro Editor
 
 A command-line tool for parsing, creating, and editing `.rkm` macro files for **Royal Kludge** keyboards.
 
